@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DevOps Interactive Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f4f8; }
+        .question-card { display: none; animation: fadeIn 0.4s ease-in-out; }
+        .question-card.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .option-btn { transition: all 0.2s; }
+        .option-btn:hover { background-color: #e2e8f0; border-color: #94a3b8; }
+        .option-btn.selected { background-color: #3b82f6; color: white; border-color: #2563eb; }
+        .option-btn.correct { background-color: #10b981; color: white; border-color: #059669; }
+        .option-btn.wrong { background-color: #ef4444; color: white; border-color: #dc2626; }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full overflow-hidden border border-slate-200">
+        
+        <!-- Header -->
+        <div class="bg-slate-900 text-white p-6 text-center">
+            <h1 class="text-2xl font-bold tracking-wide">DevOps Fundamentals Test</h1>
+            <p class="text-slate-400 text-sm mt-1">Linux, Web Servers, Docker & Terraform</p>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="bg-slate-100 h-1.5 w-full">
+            <div id="progress-bar" class="bg-blue-500 h-1.5 transition-all duration-300 w-0"></div>
+        </div>
+
+        <div class="p-6 md:p-8">
+            
+            <!-- Quiz Container -->
+            <div id="quiz-container">
+                <!-- Questions injected via JS -->
+            </div>
+
+            <!-- Results Container -->
+            <div id="results-container" class="hidden text-center py-6">
+                <div class="text-5xl mb-4" id="score-emoji">🎯</div>
+                <h2 class="text-3xl font-bold text-slate-800 mb-2">Quiz Completed!</h2>
+                <p class="text-lg text-slate-600 mb-6">You scored <span id="final-score" class="font-bold text-blue-600">0</span> out of <span id="total-questions" class="font-bold">10</span></p>
+                <div id="feedback-text" class="text-sm text-slate-500 bg-slate-50 p-4 rounded-lg border border-slate-200 mb-6"></div>
+                <button onclick="location.reload()" class="bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 px-8 rounded-lg transition-colors">Take Test Again</button>
+            </div>
+
+            <!-- Navigation Controls -->
+            <div id="controls" class="mt-8 flex justify-between items-center border-t border-slate-100 pt-6">
+                <div class="text-sm font-bold text-slate-400">
+                    Question <span id="current-q-num">1</span> of <span id="total-q-num">10</span>
+                </div>
+                <button id="next-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-6 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                    Next Question
+                </button>
+                <button id="submit-btn" class="hidden bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-6 rounded-lg transition-colors">
+                    See Results
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const quizData = [
+            {
+                q: "What does the Linux command 'pwd' output?",
+                options: ["Personal Web Data", "Print Working Directory", "Password Authentication", "Process Windows Daemon"],
+                ans: 1
+            },
+            {
+                q: "Which command updates the local package repository indexes on Ubuntu?",
+                options: ["sudo apt upgrade", "apt-get install", "sudo apt update", "systemctl update"],
+                ans: 2
+            },
+            {
+                q: "What numeric permission code grants Read(4), Write(2), and Execute(1) to the owner, but only Read/Execute to others?",
+                options: ["777", "644", "755", "700"],
+                ans: 2
+            },
+            {
+                q: "What is the standard document root directory used by Nginx to serve web pages?",
+                options: ["/etc/nginx", "/var/www/html", "/home/ubuntu/web", "/usr/share/html"],
+                ans: 1
+            },
+            {
+                q: "Which command reloads Nginx gracefully without dropping active user connections?",
+                options: ["sudo systemctl stop nginx", "sudo nginx -t", "sudo systemctl reload nginx", "sudo service nginx hard-restart"],
+                ans: 2
+            },
+            {
+                q: "What is the primary difference between a Docker Image and a Docker Container?",
+                options: ["They are the same thing", "An Image is a static blueprint; a Container is the active running instance", "Images run on Linux; Containers run on Windows", "Images are for code; Containers are for databases"],
+                ans: 1
+            },
+            {
+                q: "How do you run a Docker container in the background (detached mode) and map port 80?",
+                options: ["docker run -d -p 80:80 my-app", "docker start background 80 my-app", "docker build -p 80 my-app", "docker exec -d 80:80 my-app"],
+                ans: 0
+            },
+            {
+                q: "What is the golden rule when naming an AWS S3 bucket?",
+                options: ["It must contain uppercase letters", "It must be exactly 10 characters long", "It must be 100% globally unique across all AWS accounts worldwide", "It must start with the word 'bucket'"],
+                ans: 2
+            },
+            {
+                q: "What is the purpose of Terraform?",
+                options: ["To write frontend web code", "To automate cloud infrastructure creation using code (IaC)", "To scan servers for viruses", "To manage databases manually"],
+                ans: 1
+            },
+            {
+                q: "What is the correct sequence of the standard Terraform lifecycle commands?",
+                options: ["plan -> apply -> init", "apply -> plan -> init", "init -> plan -> apply", "build -> start -> run"],
+                ans: 2
+            }
+        ];
+
+        let currentQuestion = 0;
+        let score = 0;
+        let userAnswers = new Array(quizData.length).fill(null);
+
+        const quizContainer = document.getElementById('quiz-container');
+        const nextBtn = document.getElementById('next-btn');
+        const submitBtn = document.getElementById('submit-btn');
+        const controls = document.getElementById('controls');
+
+        function initQuiz() {
+            quizData.forEach((item, index) => {
+                const card = document.createElement('div');
+                card.className = `question-card ${index === 0 ? 'active' : ''}`;
+                card.id = `q-card-${index}`;
+                
+                let optionsHtml = '';
+                item.options.forEach((opt, oIndex) => {
+                    optionsHtml += `
+                        <button onclick="selectOption(${index}, ${oIndex})" id="btn-${index}-${oIndex}" class="option-btn w-full text-left p-4 rounded-lg border-2 border-slate-200 mb-3 text-slate-700 font-semibold focus:outline-none">
+                            ${String.fromCharCode(65 + oIndex)}. ${opt}
+                        </button>
+                    `;
+                });
+
+                card.innerHTML = `
+                    <h2 class="text-xl font-bold text-slate-800 mb-6 leading-relaxed">${index + 1}. ${item.q}</h2>
+                    <div>${optionsHtml}</div>
+                `;
+                quizContainer.appendChild(card);
+            });
+
+            document.getElementById('total-q-num').innerText = quizData.length;
+            updateProgress();
+        }
+
+        function selectOption(qIndex, oIndex) {
+            // Remove selected class from all options in this question
+            for(let i=0; i<4; i++) {
+                document.getElementById(`btn-${qIndex}-${i}`).classList.remove('selected');
+            }
+            
+            // Add selected class to clicked option
+            document.getElementById(`btn-${qIndex}-${oIndex}`).classList.add('selected');
+            
+            // Save answer
+            userAnswers[qIndex] = oIndex;
+            
+            // Enable Next button
+            nextBtn.disabled = false;
+        }
+
+        nextBtn.addEventListener('click', () => {
+            document.getElementById(`q-card-${currentQuestion}`).classList.remove('active');
+            currentQuestion++;
+            
+            if (currentQuestion < quizData.length) {
+                document.getElementById(`q-card-${currentQuestion}`).classList.add('active');
+                document.getElementById('current-q-num').innerText = currentQuestion + 1;
+                
+                // Disable next button if answer hasn't been selected yet
+                nextBtn.disabled = userAnswers[currentQuestion] === null;
+                
+                // Switch to Submit button on last question
+                if (currentQuestion === quizData.length - 1) {
+                    nextBtn.classList.add('hidden');
+                    submitBtn.classList.remove('hidden');
+                }
+            }
+            updateProgress();
+        });
+
+        submitBtn.addEventListener('click', () => {
+            calculateScore();
+            showResults();
+        });
+
+        function calculateScore() {
+            score = 0;
+            userAnswers.forEach((ans, index) => {
+                if (ans === quizData[index].ans) {
+                    score++;
+                }
+            });
+        }
+
+        function updateProgress() {
+            const percent = (currentQuestion / quizData.length) * 100;
+            document.getElementById('progress-bar').style.width = `${percent}%`;
+        }
+
+        function showResults() {
+            quizContainer.classList.add('hidden');
+            controls.classList.add('hidden');
+            document.getElementById('progress-bar').style.width = `100%`;
+            
+            const resContainer = document.getElementById('results-container');
+            resContainer.classList.remove('hidden');
+            
+            document.getElementById('final-score').innerText = score;
+            document.getElementById('total-questions').innerText = quizData.length;
+            
+            let emoji = '🎯';
+            let feedback = '';
+            
+            if (score === quizData.length) {
+                emoji = '🏆';
+                feedback = "Perfect! You have completely mastered the foundations of Linux, Docker, and Terraform.";
+            } else if (score >= 7) {
+                emoji = '⭐';
+                feedback = "Great job! You have a very solid understanding of DevOps engineering principles.";
+            } else if (score >= 4) {
+                emoji = '📚';
+                feedback = "Good effort! You understand the basics, but review the study guide to strengthen your knowledge of commands.";
+            } else {
+                emoji = '🌱';
+                feedback = "Keep learning! DevOps takes practice. Review the difference between Linux permissions and Terraform commands.";
+            }
+            
+            document.getElementById('score-emoji').innerText = emoji;
+            document.getElementById('feedback-text').innerText = feedback;
+        }
+
+        // Start Quiz
+        initQuiz();
+    </script>
+</body>
+</html>
